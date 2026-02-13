@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Perplexity Chat (Railway)</title>
+    <link rel="stylesheet" href="styles.css" />
+
+    <!-- Markdown + sanitization + code highlighting (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
+  </head>
+  <body>
+    <div id="app" class="app">
+      <aside class="sidebar">
+        <div class="sidebar__header">
+          <div class="brand">
+            <div class="brand__title">Perplexity-like Chat</div>
+            <div class="brand__subtitle">Railway template • Sonar API</div>
+          </div>
+          <button id="newChatBtn" class="btn btn--primary" title="New chat">+ New</button>
+        </div>
+
+        <div class="sidebar__section">
+          <div class="section__title">Chats</div>
+          <div id="threadList" class="threadList"></div>
+        </div>
+
+        <div class="sidebar__footer">
+          <button id="settingsBtn" class="btn" title="Settings">⚙️ Settings</button>
+          <button id="apiKeyBtn" class="btn" title="API key">🔑 API Key</button>
+          <button id="exportBtn" class="btn" title="Export current chat">⬇️ Export</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="topbar__left">
+            <div id="threadTitle" class="threadTitle">New chat</div>
+            <div id="statusPill" class="statusPill statusPill--idle">Idle</div>
+          </div>
+          <div class="topbar__right">
+            <button id="stopBtn" class="btn btn--danger" style="display:none;">⏹ Stop</button>
+          </div>
+        </header>
+
+        <section id="messages" class="messages"></section>
+
+        <section class="composer">
+          <div class="composer__attachments">
+            <label class="fileBtn">
+              🖼️ Images
+              <input id="imageInput" type="file" accept="image/*" multiple />
+            </label>
+            <label class="fileBtn">
+              📄 Docs
+              <input id="fileInput" type="file" accept=".pdf,.doc,.docx,.txt,.rtf" multiple />
+            </label>
+            <div id="attachmentPreview" class="attachmentPreview"></div>
+          </div>
+
+          <textarea id="prompt" class="prompt" rows="3" placeholder="Ask anything… (Shift+Enter for newline, Enter to send)"></textarea>
+
+          <div class="composer__actions">
+            <button id="sendBtn" class="btn btn--primary">Send</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- API Key Modal -->
+    <div id="apiKeyModal" class="modal" style="display:none;">
+      <div class="modal__backdrop"></div>
+      <div class="modal__panel">
+        <div class="modal__title">Enter your Perplexity API key</div>
+        <div class="modal__subtitle">
+          Your key is stored only in your browser (localStorage) and sent to this server per request.
+        </div>
+
+        <input id="apiKeyInput" class="input" type="password" placeholder="pplx-..." autocomplete="off" />
+        <div class="modal__row">
+          <button id="saveApiKeyBtn" class="btn btn--primary">Save</button>
+          <button id="clearApiKeyBtn" class="btn">Clear</button>
+          <button id="closeApiKeyBtn" class="btn">Close</button>
+        </div>
+        <div class="modal__hint">
+          Tip: Use a restricted / low-privilege key if Perplexity supports it in your account.
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Drawer -->
+    <div id="settingsDrawer" class="drawer" style="display:none;">
+      <div class="drawer__backdrop"></div>
+      <div class="drawer__panel">
+        <div class="drawer__header">
+          <div>
+            <div class="drawer__title">Settings</div>
+            <div class="drawer__subtitle">Most options map directly to Sonar API parameters.</div>
+          </div>
+          <button id="closeSettingsBtn" class="btn">✕</button>
+        </div>
+
+        <div class="drawer__content">
+          <div class="grid">
+            <label class="field">
+              <div class="field__label">Model</div>
+              <select id="modelSelect" class="input">
+                <option value="sonar">sonar</option>
+                <option value="sonar-pro">sonar-pro</option>
+                <option value="sonar-reasoning-pro">sonar-reasoning-pro</option>
+                <option value="sonar-deep-research">sonar-deep-research</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Search mode</div>
+              <select id="searchMode" class="input">
+                <option value="web">web</option>
+                <option value="academic">academic</option>
+                <option value="sec">sec</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Stream responses</div>
+              <select id="streamToggle" class="input">
+                <option value="true">true</option>
+                <option value="false">false</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Stream mode</div>
+              <select id="streamMode" class="input">
+                <option value="full">full</option>
+                <option value="concise">concise</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Max tokens</div>
+              <input id="maxTokens" class="input" type="number" min="1" max="128000" placeholder="Optional" />
+            </label>
+
+            <label class="field">
+              <div class="field__label">Reasoning effort</div>
+              <select id="reasoningEffort" class="input">
+                <option value="">(default)</option>
+                <option value="minimal">minimal</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Return images</div>
+              <select id="returnImages" class="input">
+                <option value="false">false</option>
+                <option value="true">true</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Return videos</div>
+              <select id="returnVideos" class="input">
+                <option value="false">false</option>
+                <option value="true">true</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Return related questions</div>
+              <select id="returnRelated" class="input">
+                <option value="false">false</option>
+                <option value="true">true</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Enable search classifier</div>
+              <select id="enableSearchClassifier" class="input">
+                <option value="false">false</option>
+                <option value="true">true</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Disable search</div>
+              <select id="disableSearch" class="input">
+                <option value="false">false</option>
+                <option value="true">true</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Safe search</div>
+              <select id="safeSearch" class="input">
+                <option value="true">true</option>
+                <option value="false">false</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Context size</div>
+              <select id="searchContextSize" class="input">
+                <option value="">(default)</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Search type (Sonar Pro)</div>
+              <select id="searchType" class="input">
+                <option value="">(default)</option>
+                <option value="fast">fast</option>
+                <option value="pro">pro</option>
+                <option value="auto">auto</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Language preference (response)</div>
+              <input id="languagePreference" class="input" placeholder="e.g., en, hi" />
+            </label>
+
+            <label class="field field--full">
+              <div class="field__label">System prompt (style / tone)</div>
+              <textarea id="systemPrompt" class="input" rows="3" placeholder="Optional: e.g., You are a concise assistant."></textarea>
+              <div class="field__help">
+                Note: Perplexity docs mention the web-search component may not attend to the system prompt.
+              </div>
+            </label>
+
+            <label class="field field--full">
+              <div class="field__label">Search domain filter (one per line; use -domain to exclude)</div>
+              <textarea id="searchDomainFilter" class="input" rows="3" placeholder="e.g.\nnasa.gov\narxiv.org\n-reddit.com"></textarea>
+            </label>
+
+            <label class="field field--full">
+              <div class="field__label">Search language filter (comma or newline)</div>
+              <textarea id="searchLanguageFilter" class="input" rows="2" placeholder="en, fr, de"></textarea>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Recency filter</div>
+              <select id="searchRecency" class="input">
+                <option value="">(none)</option>
+                <option value="hour">hour</option>
+                <option value="day">day</option>
+                <option value="week">week</option>
+                <option value="month">month</option>
+                <option value="year">year</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <div class="field__label">Async mode (Deep Research)</div>
+              <select id="deepResearchAsync" class="input">
+                <option value="true">true</option>
+                <option value="false">false</option>
+              </select>
+            </label>
+
+            <label class="field field--full">
+              <div class="field__label">Image domain filter (one per line; optional; max 10)</div>
+              <textarea id="imageDomainFilter" class="input" rows="2" placeholder="wikimedia.org\n-nasa.gov"></textarea>
+            </label>
+
+            <label class="field field--full">
+              <div class="field__label">Image format filter (one per line; gif, jpg, png, webp)</div>
+              <textarea id="imageFormatFilter" class="input" rows="2" placeholder="jpg\npng"></textarea>
+            </label>
+          </div>
+
+          <div class="drawer__actions">
+            <button id="saveSettingsBtn" class="btn btn--primary">Save settings</button>
+            <button id="resetSettingsBtn" class="btn">Reset</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
