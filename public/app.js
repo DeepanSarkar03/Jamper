@@ -1011,7 +1011,12 @@
   }
 
   async function runChatCompletion(thread, assistantIndex, signal) {
-    const payload = buildPayload(thread);
+    // Build payload but exclude the assistant message we're about to fill
+    const threadForPayload = {
+      ...thread,
+      messages: thread.messages.slice(0, assistantIndex)
+    };
+    const payload = buildPayload(threadForPayload);
 
     const resp = await fetch('/api/chat', {
       method: 'POST',
@@ -1044,8 +1049,12 @@
   }
 
   async function runDeepResearchAsync(thread, assistantIndex, signal) {
-    // Submit
-    const payload = buildPayload(thread);
+    // Submit - build payload but exclude the assistant message we're about to fill
+    const threadForPayload = {
+      ...thread,
+      messages: thread.messages.slice(0, assistantIndex)
+    };
+    const payload = buildPayload(threadForPayload);
 
     // Async endpoint expects { request: <chat completion payload> }
     const submitResp = await fetch('/api/async/submit', {
