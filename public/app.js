@@ -1030,19 +1030,24 @@
 
     if (!resp.ok) {
       const text = await resp.text();
+      console.error('API Error Response:', text);
       throw new Error(`Perplexity API error (${resp.status}): ${text}`);
     }
 
     const assistantMsg = thread.messages[assistantIndex];
 
     if (payload.stream) {
+      console.log('Starting SSE stream...');
       await consumeSSE(resp, (chunk) => {
+        console.log('Received chunk:', chunk);
         applyPerplexityChunk(assistantMsg, chunk);
         // Keep the last assistant message updated.
         updateMessageElement(thread, assistantIndex);
       });
+      console.log('Stream complete');
     } else {
       const data = await resp.json();
+      console.log('Received response:', data);
       applyPerplexityFinal(assistantMsg, data);
       updateMessageElement(thread, assistantIndex);
     }
