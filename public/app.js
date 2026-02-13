@@ -813,10 +813,12 @@
     });
 
     const messages = [];
+    // System prompt must come first, before any other messages
     if (s.system_prompt && s.system_prompt.trim()) {
       messages.push({ role: 'system', content: s.system_prompt.trim() });
     }
-    messages.push(...msgs);
+    // Add all thread messages, filtering out any system messages from the thread
+    messages.push(...msgs.filter(m => m.role !== 'system'));
 
     const payload = {
       model: s.model,
